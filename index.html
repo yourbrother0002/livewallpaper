@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>Enhanced Matrix Rain</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #clock-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+      font-family: 'Courier New', monospace;
+    }
+    #time {
+      color: #00ff41;
+      font-size: 4.2rem;
+      font-weight: bold;
+      text-shadow: 
+        0 0 8px #00ff41,
+        0 0 20px #00ff41,
+        0 0 40px rgba(0, 255, 65, 0.5);
+      letter-spacing: 4px;
+    }
+    #date {
+      color: #00cc33;
+      font-size: 1.3rem;
+      margin-top: 8px;
+      opacity: 0.85;
+      text-shadow: 0 0 10px #00ff41;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="clock-container">
+    <div id="time">00:00:00</div>
+    <div id="date">Sunday, 16 Aug 2026</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const timeEl = document.getElementById('time');
+    const dateEl = document.getElementById('date');
+
+    let width, height;
+    const fontSize = 17;
+    let columns = [];
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*';
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+
+      const columnCount = Math.floor(width / fontSize);
+      columns = [];
+
+      for (let i = 0; i < columnCount; i++) {
+        columns.push({
+          y: Math.random() * -100,
+          speed: 0.4 + Math.random() * 1.4,      // अलग-अलग स्पीड
+          length: 8 + Math.floor(Math.random() * 18),
+          chars: []
+        });
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw() {
+      // हल्का फेड (ट्रेल इफेक्ट)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.07)';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.font = fontSize + 'px "Courier New", monospace';
+
+      columns.forEach((col, i) => {
+        const x = i * fontSize;
+
+        // कॉलम के कैरेक्टर्स अपडेट
+        if (col.chars.length < col.length) {
+          col.chars.push(chars[Math.floor(Math.random() * chars.length)]);
+        }
+
+        // ड्रॉ करना
+        for (let j = 0; j < col.chars.length; j++) {
+          const y = (col.y - j) * fontSize;
+
+          if (y < -fontSize || y > height + fontSize) continue;
+
+          // लीडिंग कैरेक्टर (सबसे आगे वाला) ज्यादा चमकदार
+          if (j === 0) {
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#00ff41';
+          } 
+          // दूसरे-तीसरे भी थोड़े ब्राइट
+          else if (j < 3) {
+            ctx.fillStyle = '#aaffaa';
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = '#00ff41';
+          } 
+          else {
+            // पीछे वाले धीरे-धीरे फीके
+            const alpha = 1 - (j / col.length);
+            ctx.fillStyle = `rgba(0, 255, 65, ${alpha * 0.85})`;
+            ctx.shadowBlur = 0;
+          }
+
+          // कभी-कभी रैंडम ब्राइट कैरेक्टर
+          if (Math.random() > 0.98 && j > 3) {
+            ctx.fillStyle = '#ccffcc';
+          }
+
+          ctx.fillText(col.chars[j], x, y);
+        }
+
+        // कॉलम आगे बढ़ाना
+        col.y += col.speed;
+
+        // नीचे जाने के बाद रीसेट
+        if ((col.y - col.length) * fontSize > height) {
+          col.y = Math.random() * -50;
+          col.speed = 0.4 + Math.random() * 1.5;
+          col.length = 8 + Math.floor(Math.random() * 20);
+          col.chars = [];
+        }
+
+        // कभी-कभी कैरेक्टर बदलना (लाइव फील)
+        if (Math.random() > 0.95 && col.chars.length > 0) {
+          const idx = Math.floor(Math.random() * col.chars.length);
+          col.chars[idx] = chars[Math.floor(Math.random() * chars.length)];
+        }
+      });
+
+      // हल्का स्कैनलाइन इफेक्ट
+      ctx.fillStyle = 'rgba(0, 20, 0, 0.03)';
+      for (let y = 0; y < height; y += 4) {
+        ctx.fillRect(0, y, width, 1);
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      
+      // समय
+      const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+      timeEl.textContent = timeStr;
+
+      // तारीख
+      const options = { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' };
+      dateEl.textContent = now.toLocaleDateString('en-IN', options);
+    }
+
+    // एनिमेशन
+    setInterval(draw, 35);
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>

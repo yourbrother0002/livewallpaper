@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Lane Wallpaper</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0c0c14;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #clock-box {
+      position: absolute;
+      top: 48%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 20;
+      pointer-events: none;
+      color: white;
+    }
+    #time {
+      font-size: 4.4rem;
+      font-weight: 200;
+      letter-spacing: 5px;
+      text-shadow: 0 4px 25px rgba(0,0,0,0.4);
+    }
+    #date {
+      font-size: 1.15rem;
+      margin-top: 10px;
+      opacity: 0.85;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    #memory-caption {
+      position: absolute;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: rgba(255,255,255,0.9);
+      font-size: 1.15rem;
+      font-weight: 300;
+      letter-spacing: 1px;
+      max-width: 80%;
+      text-shadow: 0 2px 15px rgba(0,0,0,0.5);
+      z-index: 15;
+      opacity: 0;
+      transition: opacity 1.8s ease;
+      pointer-events: none;
+    }
+    #memory-caption.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="clock-box">
+    <div id="time">00:00</div>
+    <div id="date">Monday, 17 August</div>
+  </div>
+
+  <div id="memory-caption">Loading memories...</div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const timeEl = document.getElementById('time');
+    const dateEl = document.getElementById('date');
+    const captionEl = document.getElementById('memory-caption');
+
+    let width, height;
+    let particles = [];
+    let currentMemory = 0;
+    let nextMemory = 1;
+    let transition = 0;
+    let lastChange = Date.now();
+    const changeInterval = 9000; // 9 सेकंड में याद बदले
+
+    // यादों का डेटा (आप चाहो तो इसमें अपनी यादें लिख सकते हो)
+    const memories = [
+      {
+        colors: ['#1a1a2e', '#16213e', '#0f3460'],
+        caption: "पुरानी दोपहरें • जब समय रुक सा जाता था"
+      },
+      {
+        colors: ['#2c003e', '#512b58', '#8a2be2'],
+        caption: "रात की बातें • और लंबी हंसी"
+      },
+      {
+        colors: ['#0a2a1a', '#1a3c34', '#2d6a4f'],
+        caption: "बारिश वाली शामें • चाय और खामोशी"
+      },
+      {
+        colors: ['#2b1d0e', '#5c3317', '#c67c3b'],
+        caption: "सर्दियों की धूप • और गर्म कप"
+      },
+      {
+        colors: ['#1b003a', '#3a015c', '#6b2d7b'],
+        caption: "सपनों भरी रातें • जब सब मुमकिन लगता था"
+      },
+      {
+        colors: ['#0d1b2a', '#1b263b', '#415a77'],
+        caption: "खामोश सड़कें • और लंबी वॉक"
+      }
+    ];
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      createParticles();
+    }
+
+    function createParticles() {
+      particles = [];
+      for (let i = 0; i < 50; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 1.8 + 0.6,
+          speedX: (Math.random() - 0.5) * 0.2,
+          speedY: (Math.random() - 0.5) * 0.2,
+          opacity: Math.random() * 0.4 + 0.1
+        });
+      }
+    }
+
+    function drawGradient(colors, alpha = 1) {
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, colors[0]);
+      gradient.addColorStop(0.5, colors[1]);
+      gradient.addColorStop(1, colors[2]);
+
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      ctx.globalAlpha = 1;
+    }
+
+    function drawSoftLight() {
+      const gradient = ctx.createRadialGradient(
+        width * 0.5, height * 0.4, 0,
+        width * 0.5, height * 0.4, width * 0.5
+      );
+      gradient.addColorStop(0, 'rgba(255,255,255,0.06)');
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawParticles() {
+      particles.forEach(p => {
+        p.x += p.speedX;
+        p.y += p.speedY;
+
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+        ctx.fill();
+      });
+    }
+
+    function animate() {
+      const now = Date.now();
+
+      // ट्रांजिशन कंट्रोल
+      if (now - lastChange > changeInterval) {
+        currentMemory = nextMemory;
+        nextMemory = (nextMemory + 1) % memories.length;
+        transition = 0;
+        lastChange = now;
+
+        // कैप्शन अपडेट
+        captionEl.classList.remove('show');
+        setTimeout(() => {
+          captionEl.textContent = memories[currentMemory].caption;
+          captionEl.classList.add('show');
+        }, 400);
+      }
+
+      // स्मूद ट्रांजिशन
+      if (transition < 1) {
+        transition += 0.006;
+      }
+
+      // दोनों ग्रेडिएंट ड्रॉ करना
+      drawGradient(memories[currentMemory].colors, 1);
+      if (transition < 1) {
+        drawGradient(memories[nextMemory].colors, transition);
+      }
+
+      drawSoftLight();
+      drawParticles();
+
+      requestAnimationFrame(animate);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      
+      // समय (साफ और सही)
+      timeEl.textContent = now.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      // तारीख
+      dateEl.textContent = now.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      });
+    }
+
+    // शुरू करना
+    window.addEventListener('resize', resize);
+    resize();
+
+    // पहली कैप्शन
+    captionEl.textContent = memories[0].caption;
+    setTimeout(() => captionEl.classList.add('show'), 600);
+
+    animate();
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>

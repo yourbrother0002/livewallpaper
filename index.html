@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habit & Goal Tracker Wallpaper</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0c1410;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #clock-box {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: white;
+      text-shadow: 0 3px 15px rgba(0,0,0,0.4);
+    }
+    #time {
+      font-size: 3.6rem;
+      font-weight: 200;
+      letter-spacing: 4px;
+    }
+    #date {
+      font-size: 1rem;
+      margin-top: 6px;
+      opacity: 0.8;
+    }
+    #progress-text {
+      position: absolute;
+      top: 130px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.85);
+      font-size: 1.05rem;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    #goals {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 90%;
+      pointer-events: auto;
+    }
+    .goal-btn {
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+    .goal-btn:hover {
+      background: rgba(255,255,255,0.22);
+      transform: translateY(-2px);
+    }
+    .goal-btn.completed {
+      background: rgba(76, 175, 80, 0.35);
+      border-color: rgba(76, 175, 80, 0.6);
+      color: #c8f7c5;
+    }
+    .goal-btn.completed::after {
+      content: " ✓";
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="ui">
+    <div id="clock-box">
+      <div id="time">00:00</div>
+      <div id="date">Monday, 17 August</div>
+    </div>
+    <div id="progress-text">आज का प्रोग्रेस: 0/5</div>
+
+    <div id="goals">
+      <div class="goal-btn" data-goal="water">पानी पियो</div>
+      <div class="goal-btn" data-goal="study">पढ़ाई / फोकस</div>
+      <div class="goal-btn" data-goal="exercise">थोड़ा व्यायाम</div>
+      <div class="goal-btn" data-goal="read">किताब पढ़ो</div>
+      <div class="goal-btn" data-goal="meditate">मेडिटेशन / आराम</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const timeEl = document.getElementById('time');
+    const dateEl = document.getElementById('date');
+    const progressEl = document.getElementById('progress-text');
+    const goalBtns = document.querySelectorAll('.goal-btn');
+
+    let width, height;
+    let particles = [];
+    let completedGoals = new Set();
+    let treeGrowth = 0; // 0 से 1 तक
+
+    const todayKey = new Date().toDateString();
+
+    // लोकल स्टोरेज से डेटा लोड करना
+    function loadProgress() {
+      const saved = localStorage.getItem('habitWallpaper');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.date === todayKey) {
+          completedGoals = new Set(data.goals);
+        }
+      }
+      updateButtons();
+      updateGrowth();
+    }
+
+    function saveProgress() {
+      localStorage.setItem('habitWallpaper', JSON.stringify({
+        date: todayKey,
+        goals: [...completedGoals]
+      }));
+    }
+
+    function updateButtons() {
+      goalBtns.forEach(btn => {
+        const goal = btn.dataset.goal;
+        if (completedGoals.has(goal)) {
+          btn.classList.add('completed');
+        } else {
+          btn.classList.remove('completed');
+        }
+      });
+      progressEl.textContent = `आज का प्रोग्रेस: ${completedGoals.size}/5`;
+    }
+
+    function updateGrowth() {
+      treeGrowth = completedGoals.size / 5;
+    }
+
+    // क्लिक इवेंट
+    goalBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const goal = btn.dataset.goal;
+        if (completedGoals.has(goal)) {
+          completedGoals.delete(goal);
+        } else {
+          completedGoals.add(goal);
+        }
+        updateButtons();
+        updateGrowth();
+        saveProgress();
+      });
+    });
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      createParticles();
+    }
+
+    function createParticles() {
+      particles = [];
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 1.6 + 0.5,
+          speedX: (Math.random() - 0.5) * 0.15,
+          speedY: (Math.random() - 0.5) * 0.15,
+          opacity: Math.random() * 0.35 + 0.1
+        });
+      }
+    }
+
+    function drawBackground() {
+      // आसमान
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+      const progressColor = treeGrowth;
+      
+      skyGrad.addColorStop(0, `rgb(${20 + progressColor * 15}, ${30 + progressColor * 40}, ${50 + progressColor * 20})`);
+      skyGrad.addColorStop(0.6, `rgb(${30 + progressColor * 20}, ${60 + progressColor * 50}, ${40 + progressColor * 25})`);
+      skyGrad.addColorStop(1, `rgb(${25 + progressColor * 10}, ${45 + progressColor * 30}, ${30 + progressColor * 15})`);
+      
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawGround() {
+      const groundGrad = ctx.createLinearGradient(0, height * 0.72, 0, height);
+      groundGrad.addColorStop(0, `rgb(${30 + treeGrowth * 20}, ${60 + treeGrowth * 40}, ${30 + treeGrowth * 15})`);
+      groundGrad.addColorStop(1, `rgb(${20 + treeGrowth * 10}, ${40 + treeGrowth * 25}, ${20 + treeGrowth * 10})`);
+      
+      ctx.fillStyle = groundGrad;
+      ctx.beginPath();
+      ctx.moveTo(0, height * 0.75);
+      ctx.quadraticCurveTo(width * 0.5, height * 0.68, width, height * 0.75);
+      ctx.lineTo(width, height);
+      ctx.lineTo(0, height);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawTree() {
+      const centerX = width / 2;
+      const baseY = height * 0.76;
+      
+      // तना
+      const trunkHeight = 40 + treeGrowth * 90;
+      const trunkWidth = 8 + treeGrowth * 10;
+      
+      ctx.fillStyle = `rgb(${60 + treeGrowth * 30}, ${40 + treeGrowth * 20}, ${25})`;
+      ctx.beginPath();
+      ctx.moveTo(centerX - trunkWidth/2, baseY);
+      ctx.lineTo(centerX - trunkWidth/3, baseY - trunkHeight);
+      ctx.lineTo(centerX + trunkWidth/3, baseY - trunkHeight);
+      ctx.lineTo(centerX + trunkWidth/2, baseY);
+      ctx.closePath();
+      ctx.fill();
+
+      // पत्तियाँ (स्तरीय)
+      if (treeGrowth > 0.05) {
+        const levels = Math.floor(treeGrowth * 5) + 1;
+        const leafColor = `rgb(${30 + treeGrowth * 40}, ${100 + treeGrowth * 80}, ${40 + treeGrowth * 30})`;
+        
+        for (let i = 0; i < levels; i++) {
+          const layerY = baseY - trunkHeight + 20 - i * (25 + treeGrowth * 15);
+          const layerSize = 35 + i * 12 + treeGrowth * 25;
+          
+          ctx.fillStyle = leafColor;
+          ctx.beginPath();
+          ctx.arc(centerX, layerY, layerSize * (1 - i * 0.08), 0, Math.PI * 2);
+          ctx.fill();
+          
+          // हल्की चमक
+          ctx.fillStyle = `rgba(150, 255, 150, ${0.08 + treeGrowth * 0.1})`;
+          ctx.beginPath();
+          ctx.arc(centerX - 10, layerY - 10, layerSize * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // फल / फूल (जब ज्यादा प्रोग्रेस हो)
+      if (treeGrowth > 0.7) {
+        ctx.fillStyle = `rgba(255, 120, 120, ${treeGrowth})`;
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2;
+          const fx = centerX + Math.cos(angle) * (40 + treeGrowth * 20);
+          const fy = baseY - trunkHeight - 20 + Math.sin(angle) * 25;
+          ctx.beginPath();
+          ctx.arc(fx, fy, 4 + treeGrowth * 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    function drawParticles() {
+      particles.forEach(p => {
+        p.x += p.speedX;
+        p.y += p.speedY;
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200, 255, 200, ${p.opacity * (0.5 + treeGrowth * 0.5)})`;
+        ctx.fill();
+      });
+    }
+
+    function animate() {
+      drawBackground();
+      drawGround();
+      drawTree();
+      drawParticles();
+      requestAnimationFrame(animate);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      timeEl.textContent = now.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      dateEl.textContent = now.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      });
+    }
+
+    // शुरू
+    window.addEventListener('resize', resize);
+    resize();
+    loadProgress();
+    animate();
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>

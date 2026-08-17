@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Circadian Rhythm Wallpaper</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #info {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: rgba(255, 255, 255, 0.85);
+      z-index: 10;
+      pointer-events: none;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    #time {
+      font-size: 3.8rem;
+      font-weight: 300;
+      letter-spacing: 3px;
+    }
+    #phase {
+      font-size: 1.1rem;
+      margin-top: 8px;
+      opacity: 0.9;
+      letter-spacing: 1px;
+    }
+    #date {
+      font-size: 0.95rem;
+      margin-top: 6px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="info">
+    <div id="time">00:00</div>
+    <div id="phase">Loading...</div>
+    <div id="date"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const timeEl = document.getElementById('time');
+    const phaseEl = document.getElementById('phase');
+    const dateEl = document.getElementById('date');
+
+    let width, height;
+    let particles = [];
+    const particleCount = 45;
+
+    // रंग पैलेट (समय के अनुसार)
+    const palettes = {
+      earlyMorning: { // 5-7
+        bg1: '#1a1a2e', bg2: '#16213e', accent: '#e94560',
+        particle: 'rgba(255, 183, 77, 0.5)'
+      },
+      morning: { // 7-11
+        bg1: '#f6d365', bg2: '#fda085', accent: '#fff',
+        particle: 'rgba(255, 255, 255, 0.4)'
+      },
+      midday: { // 11-15
+        bg1: '#a1c4fd', bg2: '#c2e9fb', accent: '#ffffff',
+        particle: 'rgba(255, 255, 255, 0.35)'
+      },
+      afternoon: { // 15-18
+        bg1: '#fbc2eb', bg2: '#a6c1ee', accent: '#fff',
+        particle: 'rgba(255, 255, 255, 0.4)'
+      },
+      evening: { // 18-21
+        bg1: '#0f0c29', bg2: '#302b63', accent: '#ff6b6b',
+        particle: 'rgba(255, 150, 120, 0.45)'
+      },
+      night: { // 21-5
+        bg1: '#000428', bg2: '#004e92', accent: '#a0d2ff',
+        particle: 'rgba(160, 210, 255, 0.35)'
+      }
+    };
+
+    function getCurrentPhase() {
+      const hour = new Date().getHours();
+      if (hour >= 5 && hour < 7) return { key: 'earlyMorning', name: 'Early Morning • Sunrise Energy' };
+      if (hour >= 7 && hour < 11) return { key: 'morning', name: 'Morning • Focus & Clarity' };
+      if (hour >= 11 && hour < 15) return { key: 'midday', name: 'Midday • Peak Performance' };
+      if (hour >= 15 && hour < 18) return { key: 'afternoon', name: 'Afternoon • Steady Flow' };
+      if (hour >= 18 && hour < 21) return { key: 'evening', name: 'Evening • Wind Down' };
+      return { key: 'night', name: 'Night • Deep Rest' };
+    }
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      createParticles();
+    }
+
+    function createParticles() {
+      particles = [];
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 2.5 + 0.8,
+          speedX: (Math.random() - 0.5) * 0.3,
+          speedY: (Math.random() - 0.5) * 0.3,
+          opacity: Math.random() * 0.5 + 0.2
+        });
+      }
+    }
+
+    function drawBackground(palette) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, palette.bg1);
+      gradient.addColorStop(1, palette.bg2);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // सॉफ्ट लाइट ऑर्ब (सूरज/चांद जैसा)
+      const hour = new Date().getHours();
+      let orbY = height * 0.25;
+      let orbColor = palette.accent;
+
+      if (hour >= 5 && hour < 18) {
+        // दिन में ऊपर
+        orbY = height * (0.15 + Math.sin((hour - 5) / 13 * Math.PI) * 0.1);
+      } else {
+        orbY = height * 0.2;
+      }
+
+      const orbGradient = ctx.createRadialGradient(width * 0.5, orbY, 0, width * 0.5, orbY, width * 0.35);
+      orbGradient.addColorStop(0, orbColor + '55');
+      orbGradient.addColorStop(0.5, orbColor + '15');
+      orbGradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = orbGradient;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawParticles(palette) {
+      particles.forEach(p => {
+        p.x += p.speedX;
+        p.y += p.speedY;
+
+        if (p.x < 0) p.x = width;
+        if (p.x > width) p.x = 0;
+        if (p.y < 0) p.y = height;
+        if (p.y > height) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = palette.particle;
+        ctx.globalAlpha = p.opacity;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    function animate() {
+      const phase = getCurrentPhase();
+      const palette = palettes[phase.key];
+
+      drawBackground(palette);
+      drawParticles(palette);
+
+      requestAnimationFrame(animate);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+      timeEl.textContent = timeStr;
+
+      const phase = getCurrentPhase();
+      phaseEl.textContent = phase.name;
+
+      const dateStr = now.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      });
+      dateEl.textContent = dateStr;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    animate();
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmic Weather Wallpaper</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #03010a;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      color: white;
+    }
+    #clock-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      text-shadow: 0 0 25px rgba(100, 150, 255, 0.4);
+    }
+    #time {
+      font-size: 4.3rem;
+      font-weight: 200;
+      letter-spacing: 5px;
+    }
+    #date {
+      font-size: 1.1rem;
+      margin-top: 8px;
+      opacity: 0.8;
+      letter-spacing: 1px;
+    }
+    #status {
+      position: absolute;
+      bottom: 45px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.95rem;
+      opacity: 0.75;
+      letter-spacing: 1.5px;
+      text-align: center;
+      text-shadow: 0 0 15px rgba(100, 180, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="ui">
+    <div id="clock-box">
+      <div id="time">00:00</div>
+      <div id="date">Monday, 17 August</div>
+    </div>
+    <div id="status">Space Weather • Calm</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const timeEl = document.getElementById('time');
+    const dateEl = document.getElementById('date');
+    const statusEl = document.getElementById('status');
+
+    let width, height;
+    let stars = [];
+    let meteors = [];
+    let auroraPhase = 0;
+    let activity = 0.3;          // 0 से 1 तक (स्पेस वेदर तीव्रता)
+    let targetActivity = 0.3;
+    let lastActivityChange = Date.now();
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      createStars();
+    }
+
+    function createStars() {
+      stars = [];
+      const count = Math.floor((width * height) / 3500);
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          size: Math.random() * 1.6 + 0.3,
+          twinkle: Math.random() * Math.PI * 2,
+          speed: 0.01 + Math.random() * 0.02
+        });
+      }
+    }
+
+    function createMeteor() {
+      if (Math.random() > 0.015 + activity * 0.03) return;
+      
+      meteors.push({
+        x: Math.random() * width,
+        y: -20,
+        length: 40 + Math.random() * 80,
+        speed: 6 + Math.random() * 10 + activity * 8,
+        angle: Math.PI / 4 + (Math.random() - 0.5) * 0.3,
+        opacity: 0.8 + Math.random() * 0.2,
+        life: 1
+      });
+    }
+
+    function updateActivity() {
+      const now = Date.now();
+      // हर 25-40 सेकंड में एक्टिविटी बदलती है
+      if (now - lastActivityChange > 25000 + Math.random() * 15000) {
+        targetActivity = Math.random();
+        lastActivityChange = now;
+
+        // स्टेटस अपडेट
+        if (targetActivity < 0.25) statusEl.textContent = "Space Weather • Calm";
+        else if (targetActivity < 0.5) statusEl.textContent = "Space Weather • Mild Activity";
+        else if (targetActivity < 0.75) statusEl.textContent = "Space Weather • Active • Aurora Possible";
+        else statusEl.textContent = "Space Weather • Strong • Solar Storm";
+      }
+      // स्मूद ट्रांजिशन
+      activity += (targetActivity - activity) * 0.008;
+    }
+
+    function drawBackground() {
+      // गहरा स्पेस ग्रेडिएंट
+      const bg = ctx.createLinearGradient(0, 0, 0, height);
+      bg.addColorStop(0, '#03010a');
+      bg.addColorStop(0.5, '#07071a');
+      bg.addColorStop(1, '#0a1025');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      // नेबुला ग्लो (एक्टिविटी के हिसाब से)
+      const nebula = ctx.createRadialGradient(
+        width * 0.7, height * 0.3, 0,
+        width * 0.7, height * 0.3, width * 0.6
+      );
+      const hue = 220 + activity * 40;
+      nebula.addColorStop(0, `hsla(${hue}, 80%, 50%, ${0.06 + activity * 0.08})`);
+      nebula.addColorStop(1, 'transparent');
+      ctx.fillStyle = nebula;
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawStars() {
+      stars.forEach(star => {
+        star.twinkle += star.speed;
+        const alpha = 0.4 + Math.sin(star.twinkle) * 0.4;
+        
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(220, 230, 255, ${alpha})`;
+        ctx.fill();
+      });
+    }
+
+    function drawAurora() {
+      if (activity < 0.15) return;
+
+      auroraPhase += 0.008 + activity * 0.01;
+
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+
+        for (let x = 0; x <= width; x += 12) {
+          const y = height - 
+            (Math.sin(x * 0.004 + auroraPhase + i) * 40 +
+             Math.sin(x * 0.009 + auroraPhase * 1.3 + i * 2) * 30 +
+             80 + activity * 100 + i * 35);
+          
+          ctx.lineTo(x, y);
+        }
+
+        ctx.lineTo(width, height);
+        ctx.closePath();
+
+        const grad = ctx.createLinearGradient(0, height * 0.4, 0, height);
+        const hue = 140 + i * 30 + activity * 40;
+        grad.addColorStop(0, `hsla(${hue}, 90%, 65%, ${0.08 + activity * 0.12})`);
+        grad.addColorStop(0.6, `hsla(${hue + 20}, 80%, 55%, ${0.04 + activity * 0.06})`);
+        grad.addColorStop(1, 'transparent');
+        
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+    }
+
+    function drawMeteors() {
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        
+        m.x += Math.cos(m.angle) * m.speed;
+        m.y += Math.sin(m.angle) * m.speed;
+        m.life -= 0.012;
+
+        if (m.life <= 0 || m.y > height + 50) {
+          meteors.splice(i, 1);
+          continue;
+        }
+
+        const tailX = m.x - Math.cos(m.angle) * m.length * m.life;
+        const tailY = m.y - Math.sin(m.angle) * m.length * m.life;
+
+        const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
+        grad.addColorStop(0, `rgba(200, 230, 255, ${m.opacity * m.life})`);
+        grad.addColorStop(1, 'transparent');
+
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y);
+        ctx.lineTo(tailX, tailY);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+    }
+
+    function draw() {
+      updateActivity();
+      createMeteor();
+
+      drawBackground();
+      drawStars();
+      drawAurora();
+      drawMeteors();
+
+      requestAnimationFrame(draw);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      timeEl.textContent = now.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      dateEl.textContent = now.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+      });
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    draw();
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>
